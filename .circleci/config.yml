@@ -1,0 +1,16 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: cimg/openjdk:17.0
+    steps:
+      - checkout
+      - run: mvn -B package --file pom.xml
+      - setup_remote_docker
+      - run:
+          name: Build and Push Docker Image
+          command: |
+            echo "$AZURE_CLIENT_SECRET" | docker login pmndevopstestacr-gugkdbhfefg7cnbn.azurecr.io -u $AZURE_CLIENT_ID --password-stdin
+            IMAGE_TAG=$(git rev-parse --short HEAD)
+            docker build -t pmndevopstestacr-gugkdbhfefg7cnbn.azurecr.io/demo:$IMAGE_TAG .
+            docker push pmndevopstestacr-gugkdbhfefg7cnbn.azurecr.io/demo:$IMAGE_TAG
