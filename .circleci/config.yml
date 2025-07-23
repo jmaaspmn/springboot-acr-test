@@ -1,14 +1,57 @@
 version: 2.1
 
+orbs:
+  docker: circleci/docker@2.4.0
+
 jobs:
-  build:
+  build-and-push:
     docker:
       - image: cimg/openjdk:17.0
     steps:
       - checkout
-      - run: mvn -B package --file pom.xml
+      - setup_remote_docker
+      - run:
+          name: Build project JAR
+          command: mvn -B package --file pom.xml
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$CIRCLE_SHA1 .
+      - run:
+          name: Login to ACR
+          command: |
+            echo $ACR_PASSWORD | docker login $ACR_NAME.azurecr.io -u $ACR_USERNAME --password-stdin
+      - run:
+          name: Push image to ACR
+          command: |
+            docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$CIRCLE_SHA1
+
+  trigger-octopus:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run:
+          name: Trigger Octopus Deploy
+          command: |
+            curl -X POST "$OCTOPUS_URL/api/$OCTOPUS_DEPLOYMENT_ENDPOINT" \
+              -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "Project": "'$OCTOPUS_PROJECT'",
+                "Environment": "'$OCTOPUS_ENVIRONMENT'",
+                "Version": "'$CIRCLE_SHA1'",
+                "SelectedPackages": [
+                  {
+                    "StepName": "'$OCTOPUS_STEP_NAME'",
+                    "Version": "'$CIRCLE_SHA1'"
+                  }
+                ]
+              }'
 
 workflows:
   build-deploy:
     jobs:
-      - build
+      - build-and-push
+      - trigger-octopus:
+          requires:
+            - build-and-push
