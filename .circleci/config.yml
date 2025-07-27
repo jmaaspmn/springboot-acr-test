@@ -7,51 +7,47 @@ jobs:
   build-and-push:
     docker:
       - image: cimg/openjdk:17.0
-    environment:
-      VERSION_TAG: "0.4.${CIRCLE_BUILD_NUM}"
     steps:
       - checkout
       - setup_remote_docker
-
+      - run:
+          name: Set version tag
+          command: |
+            echo "export VERSION_TAG=0.4.${CIRCLE_BUILD_NUM}" >> $BASH_ENV
       - run:
           name: Build project JAR
           command: mvn -B package --file pom.xml
-
-      - run:
-          name: Set VERSION_TAG for Docker tag
-          command: |
-            echo "export VERSION_TAG=0.4.${CIRCLE_BUILD_NUM}" >> $BASH_ENV
-
       - run:
           name: Build Docker image
           command: |
             source $BASH_ENV
             docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG .
-
       - run:
           name: Login to ACR
           command: |
             echo $ACR_PASSWORD | docker login $ACR_NAME.azurecr.io -u $ACR_USERNAME --password-stdin
-
       - run:
           name: Push image to ACR
           command: |
             source $BASH_ENV
             docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG
+      - persist_to_workspace:
+          root: .
+          paths:
+            - .
 
   trigger-octopus:
     docker:
       - image: cimg/base:stable
     steps:
+      - attach_workspace:
+          at: .
       - run:
-          name: Set VERSION_TAG to match build
-          command: |
-            echo "export VERSION_TAG=0.4.${CIRCLE_BUILD_NUM}" >> $BASH_ENV
-
+          name: Load version tag
+          command: source $BASH_ENV
       - run:
           name: Trigger Octopus Release (No Deployment)
           command: |
-            source $BASH_ENV
             curl -X POST "$OCTOPUS_URL/api/releases" \
               -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
               -H "Content-Type: application/json" \
@@ -60,7 +56,8 @@ jobs:
                 "Version": "'"$VERSION_TAG"'",
                 "SelectedPackages": [
                   {
-                    "StepName": "Template.Azure.Container.Image",
+                    "StepName": "'"$OCTOPUS_STEP_NAME"'",
+                    "Name": "Template.Azure.Container.Image",
                     "Version": "'"$VERSION_TAG"'"
                   }
                 ]
