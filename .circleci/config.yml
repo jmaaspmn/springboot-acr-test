@@ -1,47 +1,74 @@
+version: 2.1
+
+orbs:
+  docker: circleci/docker@2.4.0
+
 jobs:
   build-and-push:
-    machine: true  # enables Docker daemon
-    environment:
-      IMAGE_NAME: springboot-acr-test
+    docker:
+      - image: cimg/openjdk:17.0
     steps:
       - checkout
-
+      - setup_remote_docker
       - run:
           name: Set version tag
           command: |
-            VERSION_TAG="0.4.$(git rev-list --count HEAD)"
-            echo "export VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
-            echo "Version Tag: $VERSION_TAG"
-
+            echo "0.4.${CIRCLE_BUILD_NUM}" > version.txt
+      - run:
+          name: Build project JAR
+          command: mvn -B package --file pom.xml
       - run:
           name: Build Docker image
           command: |
-            docker build -t $IMAGE_NAME:$VERSION_TAG .
-
+            VERSION_TAG=$(cat version.txt)
+            docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG .
       - run:
-          name: Authenticate with Azure Container Registry
+          name: Login to ACR
           command: |
-            echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
-
+            echo $ACR_PASSWORD | docker login $ACR_NAME.azurecr.io -u $ACR_USERNAME --password-stdin
       - run:
           name: Push image to ACR
           command: |
-            docker tag $IMAGE_NAME:$VERSION_TAG $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG
-            docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG
+            VERSION_TAG=$(cat version.txt)
+            docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG
+      - persist_to_workspace:
+          root: .
+          paths:
+            - version.txt
 
+  trigger-octopus:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - attach_workspace:
+          at: .
       - run:
-          name: Trigger Octopus Release
+          name: Read version
           command: |
+            export VERSION_TAG=$(cat version.txt)
+            echo "VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
+      - run:
+          name: Trigger Octopus Release (No Deployment)
+          command: |
+            source $BASH_ENV
             curl -X POST "$OCTOPUS_URL/api/releases" \
               -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "{
-                \"ProjectId\": \"$OCTOPUS_PROJECT_ID\",
-                \"Version\": \"$VERSION_TAG\",
-                \"SelectedPackages\": [
+              -d '{
+                "ProjectId": "'"$OCTOPUS_PROJECT_ID"'",
+                "Version": "'"$VERSION_TAG"'",
+                "SelectedPackages": [
                   {
-                    \"StepName\": \"Azure - Deploy Container App\",
-                    \"Version\": \"$VERSION_TAG\"
+                    "StepName": "Template.Azure.Container.Image",
+                    "Version": "'"$VERSION_TAG"'"
                   }
                 ]
-              }"
+              }'
+
+workflows:
+  build-deploy:
+    jobs:
+      - build-and-push
+      - trigger-octopus:
+          requires:
+            - build-and-push
