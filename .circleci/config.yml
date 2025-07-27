@@ -60,7 +60,7 @@ jobs:
                 "Version": "'"$VERSION_TAG"'",
                 "SelectedPackages": [
                   {
-                    "StepName": "'"$OCTOPUS_STEP_NAME"'",
+                    "StepName": "Template.Azure.Container.Image",
                     "Version": "'"$VERSION_TAG"'"
                   }
                 ]
