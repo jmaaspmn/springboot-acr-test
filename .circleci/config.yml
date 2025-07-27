@@ -48,23 +48,16 @@ jobs:
             VERSION_TAG=$(cat version.txt)
             echo "export VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
       - run:
-          name: Trigger Octopus Release (No Deployment)
+          name: Use Local Octopus CLI
           command: |
             source $BASH_ENV
-            echo "Using VERSION_TAG: $VERSION_TAG"
-            curl -X POST "$OCTOPUS_URL/api/releases" \
-              -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d '{
-                "ProjectId": "'"$OCTOPUS_PROJECT_ID"'",
-                "Version": "'"$VERSION_TAG"'",
-                "SelectedPackages": [
-                  {
-                    "StepName": "Azure - Deploy Container App/Template.Azure.Container.Image",
-                    "Version": "'"$VERSION_TAG"'"
-                  }
-                ]
-              }'
+            chmod +x tools/octo/octo
+            ./tools/octo/octo create-release \
+              --project "Test Azure Container App Deployment" \
+              --releaseNumber "$VERSION_TAG" \
+              --packageVersion "$VERSION_TAG" \
+              --server "$OCTOPUS_URL" \
+              --apiKey "$OCTOPUS_API_KEY"
 
 workflows:
   build-deploy:
