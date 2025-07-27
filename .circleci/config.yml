@@ -31,19 +31,18 @@ jobs:
       - image: cimg/base:stable
     steps:
       - run:
-          name: Trigger Octopus Deploy
+          name: Trigger Octopus Release (No Deployment)
           command: |
-            curl -X POST "$OCTOPUS_URL/api/$OCTOPUS_DEPLOYMENT_ENDPOINT" \
+            curl -X POST "$OCTOPUS_URL/api/releases" \
               -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
               -H "Content-Type: application/json" \
               -d '{
-                "Project": "'$OCTOPUS_PROJECT'",
-                "Environment": "'$OCTOPUS_ENVIRONMENT'",
-                "Version": "'$CIRCLE_SHA1'",
+                "ProjectName": "'"$OCTOPUS_PROJECT"'",
+                "Version": "'"$CIRCLE_SHA1"'",
                 "SelectedPackages": [
                   {
-                    "StepName": "'$OCTOPUS_STEP_NAME'",
-                    "Version": "'$CIRCLE_SHA1'"
+                    "StepName": "'"$OCTOPUS_STEP_NAME"'",
+                    "Version": "'"$CIRCLE_SHA1"'"
                   }
                 ]
               }'
