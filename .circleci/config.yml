@@ -37,7 +37,7 @@ jobs:
               -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
               -H "Content-Type: application/json" \
               -d '{
-                "ProjectName": "'"$OCTOPUS_PROJECT"'",
+                "ProjectId": "'"$OCTOPUS_PROJECT_ID"'",
                 "Version": "'"$CIRCLE_SHA1"'",
                 "SelectedPackages": [
                   {
