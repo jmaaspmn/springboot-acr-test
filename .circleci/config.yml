@@ -13,40 +13,28 @@ jobs:
       - run:
           name: Set version tag
           command: |
-            echo "0.4.${CIRCLE_BUILD_NUM}" > version.txt
+            VERSION_TAG="0.4.${CIRCLE_BUILD_NUM}"
+            echo "export VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
       - run:
           name: Build project JAR
           command: mvn -B package --file pom.xml
-      - run:
-          name: Build Docker image
-          command: |
-            VERSION_TAG=$(cat version.txt)
-            docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG .
       - run:
           name: Login to ACR
           command: |
             echo $ACR_PASSWORD | docker login $ACR_NAME.azurecr.io -u $ACR_USERNAME --password-stdin
       - run:
-          name: Push image to ACR
+          name: Build Docker image
           command: |
-            VERSION_TAG=$(cat version.txt)
+            docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG .
+      - run:
+          name: Push Docker image
+          command: |
             docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG
-      - persist_to_workspace:
-          root: .
-          paths:
-            - version.txt
 
   trigger-octopus:
     docker:
       - image: cimg/base:stable
     steps:
-      - attach_workspace:
-          at: .
-      - run:
-          name: Read version
-          command: |
-            export VERSION_TAG=$(cat version.txt)
-            echo "VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
       - run:
           name: Trigger Octopus Release (No Deployment)
           command: |
@@ -59,15 +47,14 @@ jobs:
                 "Version": "'"$VERSION_TAG"'",
                 "SelectedPackages": [
                   {
-                    "StepName": "'"$OCTOPUS_STEP_NAME"'",
-                    "Name": "Template.Azure.Container.Image",
+                    "StepName": "Azure - Deploy Container App",
                     "Version": "'"$VERSION_TAG"'"
                   }
                 ]
               }'
 
 workflows:
-  build-deploy:
+  build-and-release:
     jobs:
       - build-and-push
       - trigger-octopus:
