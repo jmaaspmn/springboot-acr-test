@@ -1,62 +1,60 @@
 version: 2.1
 
-orbs:
-  docker: circleci/docker@2.4.0
+executors:
+  docker-executor:
+    docker:
+      - image: cimg/openjdk:17.0  # Java base image
+    working_directory: ~/project
 
 jobs:
   build-and-push:
-    docker:
-      - image: cimg/openjdk:17.0
+    executor: docker-executor
+    environment:
+      IMAGE_NAME: springboot-acr-test
     steps:
       - checkout
-      - setup_remote_docker
+
       - run:
           name: Set version tag
           command: |
-            VERSION_TAG="0.4.${CIRCLE_BUILD_NUM}"
+            VERSION_TAG="0.4.$(git rev-list --count HEAD)"
             echo "export VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
-      - run:
-          name: Build project JAR
-          command: mvn -B package --file pom.xml
-      - run:
-          name: Login to ACR
-          command: |
-            echo $ACR_PASSWORD | docker login $ACR_NAME.azurecr.io -u $ACR_USERNAME --password-stdin
+            echo "Version Tag: $VERSION_TAG"
+
       - run:
           name: Build Docker image
           command: |
-            docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG .
-      - run:
-          name: Push Docker image
-          command: |
-            docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG
+            docker build -t $IMAGE_NAME:$VERSION_TAG .
 
-  trigger-octopus:
-    docker:
-      - image: cimg/base:stable
-    steps:
+      - run:
+          name: Authenticate with Azure Container Registry
+          command: |
+            echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+
+      - run:
+          name: Push image to ACR
+          command: |
+            docker tag $IMAGE_NAME:$VERSION_TAG $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG
+            docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG
+
       - run:
           name: Trigger Octopus Release (No Deployment)
           command: |
-            source $BASH_ENV
             curl -X POST "$OCTOPUS_URL/api/releases" \
               -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
               -H "Content-Type: application/json" \
-              -d '{
-                "ProjectId": "'"$OCTOPUS_PROJECT_ID"'",
-                "Version": "'"$VERSION_TAG"'",
-                "SelectedPackages": [
+              -d "{
+                \"ProjectId\": \"$OCTOPUS_PROJECT_ID\",
+                \"Version\": \"$VERSION_TAG\",
+                \"SelectedPackages\": [
                   {
-                    "StepName": "Azure - Deploy Container App",
-                    "Version": "'"$VERSION_TAG"'"
+                    \"StepName\": \"Azure - Deploy Container App\",
+                    \"Version\": \"$VERSION_TAG\"
                   }
                 ]
-              }'
+              }"
 
 workflows:
   build-and-release:
     jobs:
       - build-and-push
-      - trigger-octopus:
-          requires:
-            - build-and-push
