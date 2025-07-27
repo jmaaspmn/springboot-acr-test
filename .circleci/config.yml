@@ -1,14 +1,6 @@
-version: 2.1
-
-executors:
-  docker-executor:
-    docker:
-      - image: cimg/openjdk:17.0  # Java base image
-    working_directory: ~/project
-
 jobs:
   build-and-push:
-    executor: docker-executor
+    machine: true  # enables Docker daemon
     environment:
       IMAGE_NAME: springboot-acr-test
     steps:
@@ -38,7 +30,7 @@ jobs:
             docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:$VERSION_TAG
 
       - run:
-          name: Trigger Octopus Release (No Deployment)
+          name: Trigger Octopus Release
           command: |
             curl -X POST "$OCTOPUS_URL/api/releases" \
               -H "X-Octopus-ApiKey: $OCTOPUS_API_KEY" \
@@ -53,8 +45,3 @@ jobs:
                   }
                 ]
               }"
-
-workflows:
-  build-and-release:
-    jobs:
-      - build-and-push
