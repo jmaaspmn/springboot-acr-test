@@ -60,7 +60,7 @@ jobs:
                 "Version": "'"$VERSION_TAG"'",
                 "SelectedPackages": [
                   {
-                    "StepName": "Template.Azure.Container.Image",
+                    "StepName": "Azure - Deploy Container App/Template.Azure.Container.Image",
                     "Version": "'"$VERSION_TAG"'"
                   }
                 ]
