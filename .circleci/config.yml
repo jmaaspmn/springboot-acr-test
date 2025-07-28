@@ -40,12 +40,12 @@ jobs:
       - run:
           name: Install Octopus CLI
           command: |
-            OCTO_VERSION="9.1.6"
-            OCTO_FILENAME="OctopusCLI.${OCTO_VERSION}.linux-x64.tar.gz"
+            OCTO_VERSION="9.1.7"
+            OCTO_FILENAME="OctopusTools.${OCTO_VERSION}.linux-x64.tar.gz"
             OCTO_URL="https://github.com/OctopusDeploy/OctopusCLI/releases/download/v${OCTO_VERSION}/${OCTO_FILENAME}"
 
             echo "Downloading: $OCTO_URL"
-            curl -L -o $OCTO_FILENAME $OCTO_URL
+            curl -L -f -o $OCTO_FILENAME $OCTO_URL
 
             echo "Verifying file type:"
             file $OCTO_FILENAME
@@ -54,6 +54,7 @@ jobs:
             tar -xzf $OCTO_FILENAME
             chmod +x octo
             sudo mv octo /usr/local/bin/octo
+
 
 
       - run:
