@@ -50,8 +50,8 @@ jobs:
       - run:
           name: Install Octopus CLI
           command: |
-            curl -LO https://download.octopusdeploy.com/octopus-tools/OctopusTools.8.2.4748.linux-x64.tar.gz
-            mkdir octo-cli
+            curl -LO https://download.octopus.com/octopus-tools/8.2.4748/OctopusTools.8.2.4748.linux-x64.tar.gz
+            mkdir -p octo-cli
             tar -xzvf OctopusTools.8.2.4748.linux-x64.tar.gz -C octo-cli
             chmod +x octo-cli/octo
       - run:
