@@ -39,7 +39,7 @@ jobs:
             VERSION=$(cat version.txt)
             docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION
 
-      - octopus-cli/install
+      - octopus-cli/install-octo
 
       - run:
           name: Create Octopus Release
