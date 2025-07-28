@@ -4,18 +4,19 @@ orbs:
   docker: circleci/docker@2.4.0
 
 jobs:
-  build-and-deploy:
+  build-and-release:
     docker:
       - image: cimg/openjdk:17.0
     steps:
       - checkout
 
       - run:
-          name: Set Version
-          command: echo "0.1.${CIRCLE_BUILD_NUM}" > version.txt
+          name: Set Version Tag
+          command: |
+            echo "0.1.${CIRCLE_BUILD_NUM}" > version.txt
 
       - run:
-          name: Build JAR
+          name: Build Java Project
           command: mvn -B package --file pom.xml
 
       - setup_remote_docker
@@ -44,43 +45,24 @@ jobs:
             OCTO_FILENAME="OctopusTools.${OCTO_VERSION}.linux-x64.tar.gz"
             OCTO_URL="https://github.com/OctopusDeploy/OctopusCLI/releases/download/v${OCTO_VERSION}/${OCTO_FILENAME}"
 
-            echo "Downloading: $OCTO_URL"
             curl -L -f -o $OCTO_FILENAME $OCTO_URL
-
-            echo "Verifying file type:"
-            file $OCTO_FILENAME
-
-            echo "Extracting..."
             tar -xzf $OCTO_FILENAME
             chmod +x octo
             sudo mv octo /usr/local/bin/octo
 
-
-
       - run:
-          name: Create Octopus Release
+          name: Create Octopus Release Only
           command: |
             VERSION=$(cat version.txt)
             octo create-release \
               --project "$OCTO_PROJECT" \
               --releaseNumber "$VERSION" \
-              --package "$OCTO_PACKAGE_NAME:$VERSION" \
-              --server "$OCTO_SERVER_URL" \
-              --apiKey "$OCTO_API_KEY"
-
-      - run:
-          name: Deploy Release to Environment
-          command: |
-            VERSION=$(cat version.txt)
-            octo deploy-release \
-              --project "$OCTO_PROJECT" \
-              --releaseNumber "$VERSION" \
-              --deployTo "$OCTO_ENVIRONMENT" \
+              --package "Azure - Deploy Container App:$VERSION" \
               --server "$OCTO_SERVER_URL" \
               --apiKey "$OCTO_API_KEY"
 
 workflows:
   version: 2
-  build-deploy:
+  build-and-release:
     jobs:
-      - build-and-deploy
+      - build-and-release
