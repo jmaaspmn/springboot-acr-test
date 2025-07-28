@@ -1,6 +1,7 @@
 version: 2.1
 
 orbs:
+  octopus-cli: octopusdeploylabs/octopus-cli@1.1.0
   docker: circleci/docker@2.4.0
 
 jobs:
@@ -9,66 +10,43 @@ jobs:
       - image: cimg/openjdk:17.0
     steps:
       - checkout
+
       - setup_remote_docker
+
       - run:
           name: Set version tag
-          command: |
-            echo "0.4.${CIRCLE_BUILD_NUM}" > version.txt
+          command: echo "0.4.${CIRCLE_BUILD_NUM}" > version.txt
+
       - run:
           name: Build project JAR
           command: mvn -B package --file pom.xml
+
       - run:
           name: Build Docker image
           command: |
             VERSION_TAG=$(cat version.txt)
             docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG .
+
       - run:
           name: Login to ACR
           command: |
             echo $ACR_PASSWORD | docker login $ACR_NAME.azurecr.io -u $ACR_USERNAME --password-stdin
+
       - run:
-          name: Push image to ACR
+          name: Push Docker image to ACR
           command: |
             VERSION_TAG=$(cat version.txt)
             docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION_TAG
-      - persist_to_workspace:
-          root: .
-          paths:
-            - version.txt
 
-  trigger-octopus:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - attach_workspace:
-          at: .
+      - octopus-cli/install  # <-- This installs the CLI tool via orb
+
       - run:
-          name: Read version
+          name: Create Octopus Release
           command: |
-            export VERSION_TAG=$(cat version.txt)
-            echo "export VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
-      - run:
-          name: Install Octopus CLI
-          command: |
-            curl -LO https://download.octopus.com/octopus-tools/8.2.4748/OctopusTools.8.2.4748.linux-x64.tar.gz
-            mkdir -p octo-cli
-            tar -xzvf OctopusTools.8.2.4748.linux-x64.tar.gz -C octo-cli
-            chmod +x octo-cli/octo
-      - run:
-          name: Trigger Octopus CLI Release
-          command: |
-            source $BASH_ENV
-            ./octo-cli/octo create-release \
-              --project "Test Azure Container App Deployment" \
+            VERSION_TAG=$(cat version.txt)
+            octo create-release \
+              --server $OCTOPUS_SERVER_URL \
+              --apiKey $OCTOPUS_API_KEY \
+              --project "$OCTOPUS_PROJECT" \
               --releaseNumber "$VERSION_TAG" \
-              --packageVersion "$VERSION_TAG" \
-              --server "$OCTOPUS_URL" \
-              --apiKey "$OCTOPUS_API_KEY"
-
-workflows:
-  build-deploy:
-    jobs:
-      - build-and-push
-      - trigger-octopus:
-          requires:
-            - build-and-push
+              --package "$OCTOPUS_PACKAGE_NAME:$VERSION_TAG"
