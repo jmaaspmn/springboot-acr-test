@@ -15,6 +15,7 @@ jobs:
           command: |
             echo "0.1.${CIRCLE_BUILD_NUM}" > version.txt
 
+
       - run:
           name: Build Java Project
           command: mvn -B package --file pom.xml
