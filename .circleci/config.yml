@@ -37,14 +37,24 @@ jobs:
             VERSION=$(cat version.txt)
             docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$VERSION
 
-      - run:
-          name: Install Octopus CLI
-          command: |
-            OCTO_VERSION="9.1.6"
-            curl -sSL https://github.com/OctopusDeploy/OctopusCLI/releases/download/v${OCTO_VERSION}/OctopusCLI.${OCTO_VERSION}.linux-x64.tar.gz -o octo.tar.gz
-            tar -xzf octo.tar.gz
-            chmod +x octo
-            sudo mv octo /usr/local/bin/octo
+- run:
+    name: Install Octopus CLI
+    command: |
+      OCTO_VERSION="9.1.6"
+      OCTO_FILENAME="OctopusCLI.${OCTO_VERSION}.linux-x64.tar.gz"
+      OCTO_URL="https://github.com/OctopusDeploy/OctopusCLI/releases/download/v${OCTO_VERSION}/${OCTO_FILENAME}"
+
+      echo "Downloading: $OCTO_URL"
+      curl -L -o $OCTO_FILENAME $OCTO_URL
+
+      echo "Verifying file type:"
+      file $OCTO_FILENAME
+
+      echo "Extracting..."
+      tar -xzf $OCTO_FILENAME
+      chmod +x octo
+      sudo mv octo /usr/local/bin/octo
+
 
       - run:
           name: Create Octopus Release
