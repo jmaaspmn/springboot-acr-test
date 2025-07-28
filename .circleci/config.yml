@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  octopus-cli: octopusdeploylabs/octopus-cli@1.1.0
+  octopus-cli: octopusdeploylabs/octopus-cli@0.0.3
   docker: circleci/docker@2.4.0
 
 jobs:
