@@ -43,22 +43,22 @@ jobs:
       - attach_workspace:
           at: .
       - run:
+          name: Install Octopus CLI
+          command: |
+            curl -LO https://octopus.com/downloads/latest/OctoTools/linux-x64.zip
+            unzip linux-x64.zip -d octo-cli
+            chmod +x octo-cli/octo
+      - run:
           name: Read version
           command: |
             VERSION_TAG=$(cat version.txt)
             echo "export VERSION_TAG=$VERSION_TAG" >> $BASH_ENV
       - run:
-          name: Install Octopus CLI
-          command: |
-            curl -LO https://octopus.com/downloads/latest/OctoTools/linux-x64
-            unzip linux-x64 -d octo-cli
-            chmod +x octo-cli/octo
-      - run:
-          name: Create Octopus Release
+          name: Trigger Octopus CLI Release
           command: |
             source $BASH_ENV
-            octo-cli/octo create-release \
-              --project "Test Azure Container App Deployment" \
+            ./octo-cli/octo create-release \
+              --project "$OCTOPUS_PROJECT_NAME" \
               --releaseNumber "$VERSION_TAG" \
               --packageVersion "$VERSION_TAG" \
               --server "$OCTOPUS_URL" \
