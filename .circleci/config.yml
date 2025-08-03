@@ -11,9 +11,11 @@ jobs:
       - checkout
 
       - run:
-          name: Set Version Tag
+          name: Set Version Tag (YYYY.MM.BUILDNUM)
           command: |
-            echo "0.1.${CIRCLE_BUILD_NUM}" > version.txt
+            VERSION="$(date +'%Y.%m').${CIRCLE_BUILD_NUM}"
+            echo $VERSION > version.txt
+            echo "Version set to $VERSION"
 
       - run:
           name: Build Java Project
